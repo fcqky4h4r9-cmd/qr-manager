@@ -2,41 +2,30 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>QR登録ツール</title>
+  <title>QR登録ツール（Web版）</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
-    input, button { margin: 6px 0; }
-    .qr-box { display: inline-block; margin: 10px; text-align: center; }
+    .qr-box { margin: 15px; }
   </style>
 </head>
-
 <body>
 
-<h2>📦 エミング様専用　QR登録ツール（Google Sheets連携）</h2>
+<h2>📦 QR登録ツール（Google Sheets連携）</h2>
 
-<label>品名:</label><br>
-<input type="text" id="itemName"><br>
+<input type="text" id="itemName" placeholder="品名"><br>
+<input type="text" id="category" placeholder="カテゴリ"><br>
+<input type="text" id="model" placeholder="型番"><br>
+<input type="text" id="place" placeholder="初期配置"><br>
 
-<label>カテゴリ:</label><br>
-<input type="text" id="category"><br>
+<button id="sendBtn">登録＋QR生成</button>
 
-<label>型番:</label><br>
-<input type="text" id="model"><br>
-
-<label>初期配置:</label><br>
-<input type="text" id="place"><br>
-
-<button onclick="createAndUpload()">QR生成＋登録</button>
-
-<div id="status" style="margin-top:20px;"></div>
-<div id="qrArea" style="margin-top:20px;"></div>
+<p id="status"></p>
+<div id="qrArea"></div>
 
 <script>
-// あなたの WebApp の URL
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbw4AXMwFoP_1PkP7oTryYDPeo7Urs9Q9aEfcUxSCvzU7K-6oe7OzTxabji3sS6Efnux/exec";
 
-// UUID生成
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
@@ -45,71 +34,38 @@ function uuid() {
   });
 }
 
-async function createAndUpload() {
+document.getElementById("sendBtn").addEventListener("click", async () => {
   const name = document.getElementById("itemName").value;
   const category = document.getElementById("category").value;
   const model = document.getElementById("model").value;
   const place = document.getElementById("place").value;
 
-  if (!name) {
-    alert("品名は必須です");
-    return;
-  }
-
   const QRID = uuid();
-  const payload = {
-    QRID,
-    name,
-    model,
-    category,
-    place
-  };
+  const payload = { QRID, name, category, model, place };
 
   document.getElementById("status").innerText = "送信中…";
 
   try {
-    // ★ CORS制限回避のため no-cors モードで送信
-    await fetch(GAS_ENDPOINT, {
+    const res = await fetch(GAS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
-    // ブラウザからは結果が見えないので「送った前提」で扱う
-    document.getElementById("status").innerText =
-      "送信処理を実行しました。シート(master)に行が追加されているか確認してください。";
+    const json = await res.json();
+    console.log(json);
 
-    // QRを表示
-    generateQR(QRID, name);
+    document.getElementById("status").innerText = "送信完了: " + QRID;
 
-    // 入力欄を軽くリセット
-    // document.getElementById("itemName").value = "";
-    // document.getElementById("model").value = "";
-    // document.getElementById("category").value = "";
-    // document.getElementById("place").value = "";
+    const div = document.createElement("div");
+    new QRCode(div, { text: `QRID=${QRID}`, width: 200, height: 200 });
+    document.getElementById("qrArea").appendChild(div);
 
   } catch (err) {
-    console.error("FETCH ERROR:", err);
-    document.getElementById("status").innerText = "送信失敗（ブラウザ側で通信エラー）";
+    console.error(err);
+    document.getElementById("status").innerText = "送信失敗（通信エラー）";
   }
-}
-
-function generateQR(id, name) {
-  const text = `QRID=${id}`;
-
-  const box = document.createElement("div");
-  box.className = "qr-box";
-
-  const label = document.createElement("div");
-  label.innerText = name;
-
-  const div = document.createElement("div");
-  new QRCode(div, { text, width: 200, height: 200 });
-
-  box.appendChild(label);
-  box.appendChild(div);
-  document.getElementById("qrArea").appendChild(box);
-}
+});
 </script>
 
 </body>
